@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
 """
-Second-brain hygiene — keep an agent's knowledge store from rotting.
+PURPOSE: Soft-expire, dedupe, and report on an agent's second-brain knowledge store.
+WHY: A knowledge store rots three ways: facts go stale past their expires_at,
+    duplicate topics accumulate, and operational noise buries the signal.
+    Without scheduled hygiene, stale facts silently poison agent reasoning.
+    Soft-expire flips confidence to 'expired' (reversible, never deletes),
+    so the cleanup stays quarantine-not-delete safe.
+CALLED BY: Sunday/night shift ecosystem cleanup, heartbeat check-ins.
+    Run on k11-alpha where the second brain lives (see env example below).
+NOTES:
+    - --expire is deliberately non-destructive: it marks facts, it never
+      deletes rows. Use --dry-run first when unsure.
+    - Default DB config targets generic local Postgres; override via env.
+    - The report() command previously crashed on NULL category rows
+      (2026-09-28 fix: COALESCE in the GROUP BY).
 
 A knowledge store decays three ways: facts go stale, topics get duplicated, and
 operational noise buries the signal. This tool keeps it clean.
@@ -8,6 +21,7 @@ operational noise buries the signal. This tool keeps it clean.
   --expire   soft-expire facts whose expires_at has passed
   --dedupe   list duplicate topics (keep the highest-confidence copy)
   --report   summarize the store by category + confidence
+  --dry-run  with --expire: print how many facts WOULD expire, change nothing
 
 DB config via env vars (defaults to unix-socket local peer auth):
   SB_DB_HOST  (default: /var/run/postgresql)
@@ -15,6 +29,10 @@ DB config via env vars (defaults to unix-socket local peer auth):
   SB_DB_NAME  (default: postgres)
   SB_DB_USER  (default: current user)
   SB_TABLE    (default: second_brain)
+
+SuccessBrian deployment (ecosystem_central on k11-alpha):
+  SB_DB_HOST=localhost SB_DB_NAME=ecosystem_central SB_DB_USER=successbrian \\
+    python3 knowledge_hygiene.py --expire
 
 Requires: psycopg2  (pip install psycopg2-binary)
 """
@@ -37,28 +55,31 @@ def _conn():
     return psycopg2.connect(**DB)
 
 
-def expire():
+def expire(dry_run=False):
     c = _conn()
     cur = c.cursor()
-    cur.execute(
-        f"UPDATE {TABLE} SET confidence = 'expired' "
-        f"WHERE expires_at IS NOT NULL AND expires_at <= now() "
-        f"AND confidence != 'expired'"
-    )
-    n = cur.rowcount
-    c.commit()
+    where = (f"WHERE expires_at IS NOT NULL AND expires_at <= now() "
+             f"AND confidence != 'expired'")
+    if dry_run:
+        cur.execute(f"SELECT count(*) FROM {TABLE} {where}")
+        n = cur.fetchone()[0]
+        print(f"would expire: {n} facts past their expires_at (dry run)")
+    else:
+        cur.execute(f"UPDATE {TABLE} SET confidence = 'expired' {where}")
+        n = cur.rowcount
+        c.commit()
+        print(f"expired: {n} facts past their expires_at")
     cur.close()
     c.close()
-    print(f"expired: {n} facts past their expires_at")
 
 
 def dedupe():
     c = _conn()
     cur = c.cursor()
     cur.execute(
-        f"SELECT topic, count(*) FROM {TABLE} "
+        f"SELECT COALESCE(topic, '(no topic)'), count(*) FROM {TABLE} "
         f"WHERE confidence != 'expired' "
-        f"GROUP BY topic HAVING count(*) > 1 ORDER BY 2 DESC"
+        f"GROUP BY 1 HAVING count(*) > 1 ORDER BY 2 DESC"
     )
     rows = cur.fetchall()
     for topic, n in rows:
@@ -72,7 +93,8 @@ def report():
     c = _conn()
     cur = c.cursor()
     cur.execute(
-        f"SELECT category, confidence, count(*) FROM {TABLE} "
+        f"SELECT COALESCE(category, '(uncategorized)'), "
+        f"COALESCE(confidence, '(none)'), count(*) FROM {TABLE} "
         f"WHERE confidence != 'expired' GROUP BY 1, 2 ORDER BY 1, 2"
     )
     rows = cur.fetchall()
@@ -87,12 +109,14 @@ if __name__ == "__main__":
     ap.add_argument("--expire", action="store_true")
     ap.add_argument("--dedupe", action="store_true")
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="with --expire: show count without changing anything")
     a = ap.parse_args()
     if not (a.expire or a.dedupe or a.report):
         ap.print_help()
         sys.exit(1)
     if a.expire:
-        expire()
+        expire(dry_run=a.dry_run)
     if a.dedupe:
         dedupe()
     if a.report:
