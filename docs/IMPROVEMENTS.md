@@ -2,6 +2,9 @@
 
 Every day, this repo gets a little better. Each entry: what changed and why.
 
+## 2026-10-07
+- Nothing qualified for a safe improvement: `py_compile` clean, no TODO/FIXME/HACK markers, the module docstring already follows PURPOSE/WHY/CALLED BY/NOTES, README flags verified against the argparse definitions (all present). Left the repo untouched rather than manufacture churn.
+
 ## 2026-09-27
 - Seeded this log — the daily improvements job tracks every change here from now on.
 
