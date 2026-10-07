@@ -27,6 +27,14 @@ psql -d your_db -f schema.sql
 python3 knowledge_hygiene.py --report
 python3 knowledge_hygiene.py --expire
 python3 knowledge_hygiene.py --dedupe
+# Reconcile duplicates: keep the highest-confidence copy of each, soft-expire the rest
+python3 knowledge_hygiene.py --dedupe --apply
+# Always preview a mutating run first
+python3 knowledge_hygiene.py --expire --dry-run
+python3 knowledge_hygiene.py --dedupe --apply --dry-run
+
+# Machine-readable output for agent pipelines
+python3 knowledge_hygiene.py --report --json
 ```
 
 ## Environment variables
@@ -47,7 +55,33 @@ Requires `psycopg2` (`pip install psycopg2-binary`).
 |----------- |---------------------------------------------------------------------|
 | `--report` | Summarizes the store by `category × confidence` — your knowledge at a glance |
 | `--expire` | Soft-marks facts past `expires_at` as `expired` (won't delete, just downgrades confidence) |
-| `--dedupe` | Lists duplicate topics ranked by count — pick the highest-confidence copy and remove the rest |
+| `--dedupe` | Lists duplicate topics ranked by count |
+| `--apply`  | With `--dedupe`: keep the highest-confidence copy of each duplicate topic and soft-expire the rest (quarantine, never deletes) |
+| `--json`   | With `--report`: emit machine-readable JSON instead of the human table |
+| `--dry-run`| With `--expire` or `--dedupe --apply`: print what *would* change, change nothing |
+
+### Dedupe semantics
+
+`--dedupe --apply` reconciles duplicate topics in one statement: per topic it
+keeps the single highest-confidence copy (`high` → `medium` → `low`, tie-broken
+by most-recently-`updated_at`, then by largest `id`) and soft-flips every other
+copy to `expired`. Each retired row records `dedupe-kept=<id>` in its
+`verification` field so the decision stays auditable. Like `--expire`, this is
+quarantine-not-delete — nothing is ever dropped.
+
+```bash
+# Preview (recommended first)
+python3 knowledge_hygiene.py --dedupe --apply --dry-run
+# Then actually reconcile
+python3 knowledge_hygiene.py --dedupe --apply
+```
+
+## Testing
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
 
 ## Architecture
 
