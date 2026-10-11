@@ -61,6 +61,31 @@ Requires `psycopg2` (`pip install psycopg2-binary`).
 [Consumer queries] → filter WHERE confidence != 'expired'
 ```
 
+## Schema
+
+**second_brain** — knowledge entries. Every fact carries `confidence`
+(low | medium | high | expired), `expires_at`, and `verification`.
+
+| Column       | Type        | Purpose                              |
+|------------- |------------ |--------------------------------------|
+| id           | BIGSERIAL   | Primary key                          |
+| topic        | TEXT NOT NULL | Subject (dups allowed; hygiene reconciles) |
+| category     | TEXT NOT NULL | fact | rule | research | ...         |
+| content      | TEXT NOT NULL | The fact itself                     |
+| confidence   | TEXT        | low | medium | high | expired        |
+| source       | TEXT        | Where it came from                   |
+| verification | TEXT        | How it was verified                  |
+| expires_at   | TIMESTAMPTZ | NULL = never; >90d = ask first       |
+| tags         | TEXT[]      | Freeform indexing                    |
+| created_at   | TIMESTAMPTZ | Row creation time                    |
+| updated_at   | TIMESTAMPTZ | Last modification time               |
+
+**second_brain_events** — append-only audit log (never deleted).
+Records every insert, update, and expire operation for provenance
+tracing. Indexed on `sb_id` and `event_type`.
+
+Indexes: `topic`, `tags` (GIN), `expires_at`, `category+confidence`.
+
 ## License
 
 MIT — do whatever you want with it. See LICENSE file.

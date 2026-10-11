@@ -27,3 +27,19 @@ CREATE INDEX IF NOT EXISTS idx_second_brain_topic  ON second_brain (topic);
 CREATE INDEX IF NOT EXISTS idx_second_brain_tags   ON second_brain USING GIN (tags);
 CREATE INDEX IF NOT EXISTS idx_second_brain_expiry ON second_brain (expires_at);
 CREATE INDEX IF NOT EXISTS idx_second_brain_cat    ON second_brain (category, confidence);
+
+-- Audit log — append-only, never deleted
+-- Records every insert, update, and expire operation for provenance tracing.
+CREATE TABLE IF NOT EXISTS second_brain_events (
+    id          BIGSERIAL PRIMARY KEY,
+    sb_id       INTEGER REFERENCES second_brain(id),
+    event_type  TEXT NOT NULL
+                CHECK (event_type IN ('insert','update','expire','delete')),
+    old_confidence TEXT,
+    new_confidence TEXT,
+    metadata    JSONB,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sb_events_sb_id ON second_brain_events (sb_id);
+CREATE INDEX IF NOT EXISTS idx_sb_events_type  ON second_brain_events (event_type);
