@@ -56,52 +56,64 @@ def _conn():
 
 
 def expire(dry_run=False):
-    c = _conn()
-    cur = c.cursor()
-    where = (f"WHERE expires_at IS NOT NULL AND expires_at <= now() "
-             f"AND confidence != 'expired'")
-    if dry_run:
-        cur.execute(f"SELECT count(*) FROM {TABLE} {where}")
-        n = cur.fetchone()[0]
-        print(f"would expire: {n} facts past their expires_at (dry run)")
-    else:
-        cur.execute(f"UPDATE {TABLE} SET confidence = 'expired' {where}")
-        n = cur.rowcount
-        c.commit()
-        print(f"expired: {n} facts past their expires_at")
-    cur.close()
-    c.close()
+    try:
+        c = _conn()
+        cur = c.cursor()
+        where = (f"WHERE expires_at IS NOT NULL AND expires_at <= now() "
+                 f"AND confidence != 'expired'")
+        if dry_run:
+            cur.execute(f"SELECT count(*) FROM {TABLE} {where}")
+            n = cur.fetchone()[0]
+            print(f"would expire: {n} facts past their expires_at (dry run)")
+        else:
+            cur.execute(f"UPDATE {TABLE} SET confidence = 'expired' {where}")
+            n = cur.rowcount
+            c.commit()
+            print(f"expired: {n} facts past their expires_at")
+        cur.close()
+        c.close()
+    except psycopg2.Error as e:
+        print(f"error (expire): {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def dedupe():
-    c = _conn()
-    cur = c.cursor()
-    cur.execute(
-        f"SELECT COALESCE(topic, '(no topic)'), count(*) FROM {TABLE} "
-        f"WHERE confidence != 'expired' "
-        f"GROUP BY 1 HAVING count(*) > 1 ORDER BY 2 DESC"
-    )
-    rows = cur.fetchall()
-    for topic, n in rows:
-        print(f"dup topic ({n}x): {topic}")
-    cur.close()
-    c.close()
-    print(f"duplicate topics: {len(rows)}")
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"SELECT COALESCE(topic, '(no topic)'), count(*) FROM {TABLE} "
+            f"WHERE confidence != 'expired' "
+            f"GROUP BY 1 HAVING count(*) > 1 ORDER BY 2 DESC"
+        )
+        rows = cur.fetchall()
+        for topic, n in rows:
+            print(f"dup topic ({n}x): {topic}")
+        cur.close()
+        c.close()
+        print(f"duplicate topics: {len(rows)}")
+    except psycopg2.Error as e:
+        print(f"error (dedupe): {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def report():
-    c = _conn()
-    cur = c.cursor()
-    cur.execute(
-        f"SELECT COALESCE(category, '(uncategorized)'), "
-        f"COALESCE(confidence, '(none)'), count(*) FROM {TABLE} "
-        f"WHERE confidence != 'expired' GROUP BY 1, 2 ORDER BY 1, 2"
-    )
-    rows = cur.fetchall()
-    for cat, conf, n in rows:
-        print(f"{cat:20s} {conf:10s} {n}")
-    cur.close()
-    c.close()
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"SELECT COALESCE(category, '(uncategorized)'), "
+            f"COALESCE(confidence, '(none)'), count(*) FROM {TABLE} "
+            f"WHERE confidence != 'expired' GROUP BY 1, 2 ORDER BY 1, 2"
+        )
+        rows = cur.fetchall()
+        for cat, conf, n in rows:
+            print(f"{cat:20s} {conf:10s} {n}")
+        cur.close()
+        c.close()
+    except psycopg2.Error as e:
+        print(f"error (report): {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
