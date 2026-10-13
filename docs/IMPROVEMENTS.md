@@ -49,3 +49,6 @@ Every day, this repo gets a little better. Each entry: what changed and why.
 
 ## 2026-10-12
 - Wrapped all three DB functions (expire, dedupe, report) with try/except psycopg2.Error blocks — on connection failure or query error the tool now prints a clean "error (func): {message}" to stderr and exits cleanly instead of dumping a raw psycopg2 traceback. This matters because the hygiene tool runs unattended via cron; a raw stack trace in cron mail looks like a crash to the operator when it's just a bad network to Postgres.
+
+## 2026-10-13
+- Nothing qualified for a safe improvement: `py_compile` clean, no TODO/FIXME/HACK markers, no unused imports, module docstring follows PURPOSE/WHY/CALLED BY/NOTES, today's pull (error-handling rework of knowledge_hygiene.py) already documented, README current. Survey only, no churn.
