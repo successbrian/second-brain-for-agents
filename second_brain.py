@@ -97,6 +97,67 @@ def insert_fact(
         raise
 
 
+def upsert_fact(
+    topic: str,
+    content: str,
+    category: str = "fact",
+    confidence: str = "medium",
+    source: Optional[str] = None,
+    verification: Optional[str] = None,
+    expires_at: Optional[datetime] = None,
+    tags: Optional[list[str]] = None,
+) -> int:
+    """
+    Insert or update a fact by topic. If a row with the same topic exists,
+    update its content, confidence, verification, expires_at, and tags in place
+    (created_at is preserved). Returns the row's id (new or existing).
+
+    Args:
+        topic: Subject of the fact (used for the upsert key).
+        content: The fact itself.
+        category: "fact", "rule", "research", etc. (default: "fact").
+        confidence: "low", "medium", "high" (default: "medium").
+        source: Where the fact came from.
+        verification: How it was verified.
+        expires_at: When this fact expires (NULL = never).
+        tags: Freeform tags for indexing.
+
+    Returns:
+        The row's id (new or existing).
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"""
+            INSERT INTO {TABLE}
+                (topic, category, content, confidence, source,
+                 verification, expires_at, tags)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (topic) DO UPDATE SET
+                content = EXCLUDED.content,
+                category = EXCLUDED.category,
+                confidence = EXCLUDED.confidence,
+                source = EXCLUDED.source,
+                verification = EXCLUDED.verification,
+                expires_at = EXCLUDED.expires_at,
+                tags = EXCLUDED.tags,
+                {_upsert_updated()}
+            RETURNING id
+            """,
+            (topic, category, content, confidence, source, verification,
+             expires_at, tags),
+        )
+        row_id = cur.fetchone()["id"]
+        c.commit()
+        cur.close()
+        c.close()
+        return row_id
+    except psycopg2.Error as e:
+        print(f"error (upsert_fact): {e}", file=sys.stderr)
+        raise
+
+
 def query(
     topic: str,
     category: Optional[str] = None,

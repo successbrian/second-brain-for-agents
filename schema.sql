@@ -8,7 +8,7 @@
 
 CREATE TABLE IF NOT EXISTS second_brain (
     id            BIGSERIAL PRIMARY KEY,
-    topic         TEXT NOT NULL,                  -- what this fact is about (dups allowed; hygiene tool reconciles)
+    topic         TEXT NOT NULL UNIQUE,           -- unique upsert key; hygiene reconciles stale dups
     category      TEXT NOT NULL,                  -- fact | rule | research | ...
     content       TEXT NOT NULL,                  -- the fact itself
     confidence    TEXT NOT NULL DEFAULT 'medium', -- low | medium | high | expired
