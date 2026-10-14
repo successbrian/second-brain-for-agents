@@ -52,3 +52,7 @@ Every day, this repo gets a little better. Each entry: what changed and why.
 
 ## 2026-10-13
 - Nothing qualified for a safe improvement: `py_compile` clean, no TODO/FIXME/HACK markers, no unused imports, module docstring follows PURPOSE/WHY/CALLED BY/NOTES, today's pull (error-handling rework of knowledge_hygiene.py) already documented, README current. Survey only, no churn.
+
+## 2026-10-14
+- Removed 2 unused imports from second_brain.py: `timedelta` (only `datetime` is used) and `RealDictCursor` (cursors are plain `c.cursor()`). Verified zero references, py_compile clean. Why it matters: the client module landed 2026-10-13; dead imports in a fresh module invite the next reader to assume a feature (timedelta math, dict cursors) that doesn't exist.
+- README: added a "Python client" section documenting second_brain.py (insert_fact / query / get_recent / get_by_confidence / update_confidence / count with a usage example) — the README previously only covered knowledge_hygiene.py even though the client module is the agent-facing API. Doc-only fix; function table checked against actual signatures.

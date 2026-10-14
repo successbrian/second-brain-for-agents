@@ -29,6 +29,28 @@ python3 knowledge_hygiene.py --expire
 python3 knowledge_hygiene.py --dedupe
 ```
 
+## Python client
+
+`second_brain.py` is a reusable client for agent code — same env vars, same
+table, no CLI needed:
+
+```python
+from second_brain import insert_fact, query, get_recent
+
+insert_fact("market_status", "rule", "HN shows 403 on Reddit", confidence="high")
+for row in query("market_status", category="rule"):
+    print(row["content"])
+```
+
+| Function | What it does |
+|----------|--------------|
+| `insert_fact(topic, content, ...)` | Insert a fact, returns the new row id |
+| `query(topic, category?, min_confidence?, limit?)` | Facts by exact topic, confidence-ordered, expired excluded |
+| `get_recent(hours=24, limit=50)` | Newest facts in the window |
+| `get_by_confidence(confidence, limit?)` | Facts at one confidence level |
+| `update_confidence(id, confidence)` | Re-grade a fact |
+| `count()` | Row counts by category × confidence |
+
 ## Environment variables
 
 | Variable     | Default                    | Purpose                          |

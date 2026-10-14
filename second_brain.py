@@ -19,11 +19,10 @@ Usage:
 """
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 import psycopg2
-from psycopg2.extras import RealDictCursor
 
 
 DB = dict(
