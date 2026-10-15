@@ -319,34 +319,55 @@ def update_confidence(
         return False
 
 
-def count() -> dict:
+def search(
+    pattern: str,
+    category: Optional[str] = None,
+    min_confidence: str = "low",
+    match_field: str = "topic",
+    limit: int = 50,
+) -> list[dict]:
     """
-    Get a summary count of the knowledge store.
+    Search facts by partial topic or content match.
 
-    Returns:
-        Dict with counts by confidence level.
+    Args:
+        pattern: Substring to search for (ILIKE for topic, LIKE for content).
+        category: Optional category filter.
+        min_confidence: Minimum confidence level (order: high > medium > low > expired).
+        match_field: "topic" (default, ILIKE partial match) or "content" (LIKE partial).
+        limit: Max rows to return.
+
+    Examples:
+        search("market")  -> finds "market_status", "market_trend", etc.
+        search("403", match_field="content")  -> finds facts containing "403"
     """
     try:
         c = _conn()
         cur = c.cursor()
-        cur.execute(
-            f"""
-            SELECT confidence, count(*)
-            FROM {TABLE}
-            GROUP BY confidence
-            ORDER BY confidence
-            """
-        )
-        result = {r["confidence"]: r["count"] for r in cur.fetchall()}
+        if match_field == "content":
+            sql = f"SELECT * FROM {TABLE} WHERE content LIKE %s AND confidence != 'expired'"
+            params: list = [f"%{pattern}%"]
+        else:
+            sql = f"SELECT * FROM {TABLE} WHERE topic ILIKE %s AND confidence != 'expired'"
+            params: list = [f"%{pattern}%"]
+        if category:
+            sql += " AND category = %s"
+            params.append(category)
+        sql += f" ORDER BY CASE confidence"
+        for level, order in CONFIDENCE_ORDER.items():
+            sql += f" WHEN '{level}' THEN {order}"
+        sql += " END, created_at DESC LIMIT %s"
+        params.append(limit)
+        cur.execute(sql, params)
+        rows = [dict(r) for r in cur.fetchall()]
         cur.close()
         c.close()
-        return result
+        return rows
     except psycopg2.Error as e:
-        print(f"error (count): {e}", file=sys.stderr)
-        return {}
+        print(f"error (search): {e}", file=sys.stderr)
+        return []
 
 
-if __name__ == "__main__":
+def count() -> dict:
     import json
     # Quick self-test when run directly
     print("second_brain client — env check")
