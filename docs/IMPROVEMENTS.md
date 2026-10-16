@@ -56,3 +56,7 @@ Every day, this repo gets a little better. Each entry: what changed and why.
 ## 2026-10-14
 - Removed 2 unused imports from second_brain.py: `timedelta` (only `datetime` is used) and `RealDictCursor` (cursors are plain `c.cursor()`). Verified zero references, py_compile clean. Why it matters: the client module landed 2026-10-13; dead imports in a fresh module invite the next reader to assume a feature (timedelta math, dict cursors) that doesn't exist.
 - README: added a "Python client" section documenting second_brain.py (insert_fact / query / get_recent / get_by_confidence / update_confidence / count with a usage example) — the README previously only covered knowledge_hygiene.py even though the client module is the agent-facing API. Doc-only fix; function table checked against actual signatures.
+
+## 2026-10-16
+- README: added `upsert_fact(topic, content, ...)` and `search(pattern, match_field?, ...)` rows to the Python client function table — both landed 2026-10-15 (upsert_fact with the UNIQUE-topic constraint, search with ILIKE topic / LIKE content partial matching) but the table documented only the six Oct-13 functions. Doc-only fix; signatures copied verbatim from the code. Why it matters: the two newest functions are the agent-facing ones most likely to be reached for first (idempotent writes, fuzzy lookup); a table that omits them understates the API.
+- Survey: `py_compile` clean, no TODO/FIXME/HACK, all imports used, module docstrings present.

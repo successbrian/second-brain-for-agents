@@ -45,10 +45,12 @@ for row in query("market_status", category="rule"):
 | Function | What it does |
 |----------|--------------|
 | `insert_fact(topic, content, ...)` | Insert a fact, returns the new row id |
+| `upsert_fact(topic, content, ...)` | Insert or update by UNIQUE topic, returns the row id |
 | `query(topic, category?, min_confidence?, limit?)` | Facts by exact topic, confidence-ordered, expired excluded |
 | `get_recent(hours=24, limit=50)` | Newest facts in the window |
 | `get_by_confidence(confidence, limit?)` | Facts at one confidence level |
 | `update_confidence(id, confidence)` | Re-grade a fact |
+| `search(pattern, match_field?, category?, min_confidence?, limit?)` | Partial topic/content match (match_field: "topic" ILIKE or "content" LIKE) |
 | `count()` | Row counts by category × confidence |
 
 ## Environment variables
