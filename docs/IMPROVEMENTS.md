@@ -2,6 +2,9 @@
 
 Every day, this repo gets a little better. Each entry: what changed and why.
 
+## 2026-10-17
+- README flags table now documents `--dry-run` (modifier for `--expire`: previews how many facts would expire without changing anything) — the flag existed in code and the module docstring but the README's table omitted it; docs now match the CLI surface. Survey: `py_compile` clean, no TODO/FIXME/HACK markers, all imports used, module docstrings follow PURPOSE/WHY/CALLED BY/NOTES, `second_brain.py` functions all documented. `knowledge_hygiene.py`'s internal helpers (`_conn`, `expire`, `dedupe`, `report`) have no function docstrings — left alone as internal-by-design, module docstring documents the CLI.
+
 ## 2026-10-08
 - Nothing qualified for a safe improvement: `py_compile` clean, no TODO/FIXME/HACK markers, the module docstring already follows PURPOSE/WHY/CALLED BY/NOTES, README flags verified against the argparse definitions (all present), runtime artifacts gitignored. Left the repo untouched rather than manufacture churn.
 

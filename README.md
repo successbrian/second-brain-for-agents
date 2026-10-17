@@ -72,6 +72,7 @@ Requires `psycopg2` (`pip install psycopg2-binary`).
 | `--report` | Summarizes the store by `category × confidence` — your knowledge at a glance |
 | `--expire` | Soft-marks facts past `expires_at` as `expired` (won't delete, just downgrades confidence) |
 | `--dedupe` | Lists duplicate topics ranked by count — pick the highest-confidence copy and remove the rest |
+| `--dry-run` | Modifier for `--expire`: prints how many facts WOULD expire without changing anything |
 
 ## Architecture
 
