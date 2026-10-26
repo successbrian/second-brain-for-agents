@@ -368,12 +368,31 @@ def search(
 
 
 def count() -> dict:
-    import json
-    # Quick self-test when run directly
-    print("second_brain client — env check")
-    for key in ("SB_DB_HOST", "SB_DB_PORT", "SB_DB_NAME", "SB_DB_USER", "SB_TABLE"):
-        val = os.environ.get(key, "<default>")
-        print(f"  {key} = {val}")
-    print(f"TABLE = {TABLE}")
-    print("count():", json.dumps(count(), indent=2))
-    print("get_recent(1):", json.dumps(get_recent(hours=1, limit=3), indent=2))
+    """
+    Return row counts grouped by category × confidence (non-expired).
+
+    Returns:
+        Dict keyed by category, each value a dict keyed by confidence level
+        with the row count.  Example: {"rule": {"high": 5, "medium": 3}, "fact": {"low": 2}}.
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"""
+            SELECT category, confidence, count(*)::int
+            FROM {TABLE}
+            WHERE confidence != 'expired'
+            GROUP BY 1, 2
+            ORDER BY 1, 2
+            """
+        )
+        result: dict = {}
+        for category, confidence, n in cur.fetchall():
+            result.setdefault(category, {})[confidence] = n
+        cur.close()
+        c.close()
+        return result
+    except psycopg2.Error as e:
+        print(f"error (count): {e}", file=sys.stderr)
+        return {}
