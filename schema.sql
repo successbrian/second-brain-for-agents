@@ -43,3 +43,49 @@ CREATE TABLE IF NOT EXISTS second_brain_events (
 
 CREATE INDEX IF NOT EXISTS idx_sb_events_sb_id ON second_brain_events (sb_id);
 CREATE INDEX IF NOT EXISTS idx_sb_events_type  ON second_brain_events (event_type);
+
+-- Auto-audit trigger: logs every insert, update, and delete to second_brain_events.
+-- This ensures the audit trail is never bypassed — even direct SQL gets logged.
+CREATE OR REPLACE FUNCTION fn_second_brain_audit() RETURNS TRIGGER AS $audit$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        INSERT INTO second_brain_events (sb_id, event_type, metadata)
+        VALUES (NEW.id, 'insert', jsonb_build_object(
+            'topic', NEW.topic, 'category', NEW.category,
+            'confidence', NEW.confidence, 'source', NEW.source
+        ));
+        RETURN NEW;
+    ELSIF TG_OP = 'UPDATE' THEN
+        -- Only log if key fields actually changed
+        IF OLD.content IS DISTINCT FROM NEW.content
+           OR OLD.confidence IS DISTINCT FROM NEW.confidence
+           OR OLD.verification IS DISTINCT FROM NEW.verification
+           OR OLD.expires_at IS DISTINCT FROM NEW.expires_at
+           OR OLD.tags IS DISTINCT FROM NEW.tags THEN
+            INSERT INTO second_brain_events (sb_id, event_type, old_confidence, new_confidence, metadata)
+            VALUES (NEW.id, 'update', OLD.confidence, NEW.confidence, jsonb_build_object(
+                'topic', NEW.topic,
+                'content_changed', OLD.content IS DISTINCT FROM NEW.content,
+                'confidence_changed', OLD.confidence IS DISTINCT FROM NEW.confidence,
+                'verification_changed', OLD.verification IS DISTINCT FROM NEW.verification,
+                'expires_at_changed', OLD.expires_at IS DISTINCT FROM NEW.expires_at,
+                'tags_changed', OLD.tags IS DISTINCT FROM NEW.tags
+            ));
+        END IF;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        INSERT INTO second_brain_events (sb_id, event_type, old_confidence, metadata)
+        VALUES (OLD.id, 'delete', OLD.confidence, jsonb_build_object(
+            'topic', OLD.topic, 'category', OLD.category,
+            'confidence', OLD.confidence
+        ));
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$audit LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_second_brain_audit ON second_brain;
+CREATE TRIGGER trg_second_brain_audit
+    AFTER INSERT OR UPDATE OR DELETE ON second_brain
+    FOR EACH ROW EXECUTE FUNCTION fn_second_brain_audit();
