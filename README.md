@@ -106,10 +106,19 @@ Requires `psycopg2` (`pip install psycopg2-binary`).
 | updated_at   | TIMESTAMPTZ | Last modification time               |
 
 **second_brain_events** — append-only audit log (never deleted).
-Records every insert, update, and expire operation for provenance
+Records every insert, update, and delete operation for provenance
 tracing. Indexed on `sb_id` and `event_type`.
 
 Indexes: `topic`, `tags` (GIN), `expires_at`, `category+confidence`.
+
+### Auto-audit triggers (schema v2+)
+
+Three `AFTER` triggers on `second_brain` automatically write to
+`second_brain_events` on INSERT, UPDATE, and DELETE. No application
+code change is needed — the database does the logging. Each event
+captures the row's JSONB snapshot, the old and new confidence levels,
+and the operation type. This means even stale or unverified data
+leaves a permanent trace.
 
 ## License
 

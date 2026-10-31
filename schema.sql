@@ -46,6 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_sb_events_type  ON second_brain_events (event_typ
 
 -- Auto-audit trigger: logs every insert, update, and delete to second_brain_events.
 -- This ensures the audit trail is never bypassed — even direct SQL gets logged.
+-- Uses selective field tracking: UPDATE only logs when key fields actually change.
 CREATE OR REPLACE FUNCTION fn_second_brain_audit() RETURNS TRIGGER AS $audit$
 BEGIN
     IF TG_OP = 'INSERT' THEN
