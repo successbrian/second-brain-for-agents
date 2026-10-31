@@ -53,6 +53,9 @@ Every day, this repo gets a little better. Each entry: what changed and why.
 ## 2026-10-11
 - Nothing qualified for a safe improvement: `py_compile` clean, no TODO/FIXME/HACK markers, module docstring follows PURPOSE/WHY/CALLED BY/NOTES, README flags match argparse, `__pycache__/` gitignored and working tree clean. Survey only, no churn.
 
+## 2026-10-31
+- Added auto-audit triggers (schema v2+): `fn_second_brain_audit()` fires on INSERT/UPDATE/DELETE and writes to `second_brain_events` automatically. UPDATE is selective — only logs when key fields (content, confidence, verification, expires_at, tags) actually change, avoiding audit log bloat from trivial metadata updates. Rebased over remote's existing trigger implementation cleanly.
+
 ## 2026-10-12
 - Wrapped all three DB functions (expire, dedupe, report) with try/except psycopg2.Error blocks — on connection failure or query error the tool now prints a clean "error (func): {message}" to stderr and exits cleanly instead of dumping a raw psycopg2 traceback. This matters because the hygiene tool runs unattended via cron; a raw stack trace in cron mail looks like a crash to the operator when it's just a bad network to Postgres.
 
