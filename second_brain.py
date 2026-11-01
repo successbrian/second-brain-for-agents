@@ -396,3 +396,131 @@ def count() -> dict:
     except psycopg2.Error as e:
         print(f"error (count): {e}", file=sys.stderr)
         return {}
+
+
+# ---------------------------------------------------------------------------
+# Event audit log — second_brain_events client
+# ---------------------------------------------------------------------------
+
+EVENTS_TABLE = os.environ.get("SB_EVENTS_TABLE", "second_brain_events")
+
+
+def events_append(
+    sb_id: int,
+    event_type: str,
+    old_confidence: Optional[str] = None,
+    new_confidence: Optional[str] = None,
+    metadata: Optional[dict] = None,
+) -> int:
+    """
+    Append an audit event to the second_brain_events table.
+
+    Args:
+        sb_id: The second_brain row id this event references.
+        event_type: "insert", "update", "expire", or "delete".
+        old_confidence: Previous confidence level (for update/expire events).
+        new_confidence: New confidence level (for update/expire events).
+        metadata: Arbitrary JSONB payload for additional context.
+
+    Returns:
+        The new event row id.
+
+    Examples:
+        events_append(42, "expire", old_confidence="high", new_confidence="expired")
+        events_append(42, "insert", metadata={"source": "scout"})
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"""
+            INSERT INTO {EVENTS_TABLE}
+                (sb_id, event_type, old_confidence, new_confidence, metadata)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (sb_id, event_type, old_confidence, new_confidence, metadata),
+        )
+        event_id = cur.fetchone()["id"]
+        c.commit()
+        cur.close()
+        c.close()
+        return event_id
+    except psycopg2.Error as e:
+        print(f"error (events_append): {e}", file=sys.stderr)
+        return -1
+
+
+def events_read(
+    sb_id: Optional[int] = None,
+    event_type: Optional[str] = None,
+    limit: int = 50,
+) -> list[dict]:
+    """
+    Read audit events, optionally filtered by sb_id and/or event_type.
+
+    Args:
+        sb_id: Filter to events for this second_brain row.
+        event_type: Filter to this event type only.
+        limit: Max rows to return.
+
+    Returns:
+        List of event dicts ordered newest-first.
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        sql = f"SELECT * FROM {EVENTS_TABLE} WHERE 1=1"
+        params: list = []
+        if sb_id is not None:
+            sql += " AND sb_id = %s"
+            params.append(sb_id)
+        if event_type is not None:
+            sql += " AND event_type = %s"
+            params.append(event_type)
+        sql += " ORDER BY created_at DESC LIMIT %s"
+        params.append(limit)
+        cur.execute(sql, params)
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close()
+        c.close()
+        return rows
+    except psycopg2.Error as e:
+        print(f"error (events_read): {e}", file=sys.stderr)
+        return []
+
+
+def events_archive(older_than_days: int = 365) -> int:
+    """
+    Soft-archive events older than the given number of days.
+
+    Moves the confidence of old events to 'archived' so they stay queryable
+    but don't clutter the active audit log. The data is never deleted.
+
+    Args:
+        older_than_days: Archive events older than this many days.
+
+    Returns:
+        Number of events archived.
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"""
+            UPDATE {EVENTS_TABLE}
+            SET metadata = COALESCE(metadata, '{{}}'::jsonb) ||
+                           jsonb_build_object('archived_at', now()::text)
+            WHERE created_at < now() - interval '{older_than_days} days'
+            AND metadata->'archived_at' IS NULL
+            """,
+        )
+        n = cur.rowcount
+        c.commit()
+        cur.close()
+        c.close()
+        print(f"archived: {n} events older than {older_than_days} days")
+        return n
+    except psycopg2.Error as e:
+        print(f"error (events_archive): {e}", file=sys.stderr)
+        return -1

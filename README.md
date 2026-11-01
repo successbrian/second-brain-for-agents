@@ -52,6 +52,9 @@ for row in query("market_status", category="rule"):
 | `update_confidence(id, confidence)` | Re-grade a fact |
 | `search(pattern, match_field?, category?, min_confidence?, limit?)` | Partial topic/content match (match_field: "topic" ILIKE or "content" LIKE) |
 | `count()` | Row counts by category × confidence |
+| `events_append(sb_id, event_type, ...)` | Append an audit event (insert/update/expire/delete) |
+| `events_read(sb_id?, event_type?, limit?)` | Read events filtered by row or type |
+| `events_archive(days?)` | Soft-archive events older than N days (marks, never deletes) |
 
 ## Environment variables
 
