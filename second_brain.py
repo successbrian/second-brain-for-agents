@@ -235,6 +235,77 @@ def get_recent(hours: int = 24, limit: int = 50) -> list[dict]:
         return []
 
 
+def query_by_tag(tag: str, limit: int = 50) -> list[dict]:
+    """
+    Get non-expired facts that have a specific tag.
+
+    Uses PostgreSQL GIN index on tags[] for fast array containment queries.
+
+    Args:
+        tag: Tag string to match (e.g. "pricing" finds rows where tags @> ARRAY['pricing']).
+        limit: Max rows to return.
+
+    Returns:
+        List of dicts matching the tag, ordered newest-first.
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"""
+            SELECT * FROM {TABLE}
+            WHERE tags @> ARRAY[%s]::text[]
+              AND confidence != 'expired'
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (tag, limit),
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close()
+        c.close()
+        return rows
+    except psycopg2.Error as e:
+        print(f"error (query_by_tag): {e}", file=sys.stderr)
+        return []
+
+
+def get_expiring_soon(hours: int = 48, limit: int = 100) -> list[dict]:
+    """
+    Get non-expired facts whose expires_at falls within the next N hours.
+
+    Useful for proactive re-verification before facts expire.
+
+    Args:
+        hours: Window to look ahead (default: 48).
+        limit: Max rows to return.
+
+    Returns:
+        List of dicts expiring soon, ordered by expires_at ascending.
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"""
+            SELECT * FROM {TABLE}
+            WHERE expires_at IS NOT NULL
+              AND expires_at BETWEEN now() AND now() + interval '{hours} hours'
+              AND confidence != 'expired'
+            ORDER BY expires_at ASC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close()
+        c.close()
+        return rows
+    except psycopg2.Error as e:
+        print(f"error (get_expiring_soon): {e}", file=sys.stderr)
+        return []
+
+
 def get_by_confidence(
     confidence: str,
     category: Optional[str] = None,
