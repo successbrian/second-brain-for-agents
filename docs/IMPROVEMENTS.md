@@ -2,6 +2,9 @@
 
 Every day, this repo gets a little better. Each entry: what changed and why.
 
+## 2026-11-05
+- Fixed min_confidence parameter in query() and search() — both functions accepted min_confidence but never applied it to the SQL WHERE clause, meaning agents calling query(topic, min_confidence='high') got medium and low facts too. Fixed by building a confidence IN () clause from CONFIDENCE_ORDER thresholds. Why it matters: this is the most fundamental agent-facing API contract; silent confidence leakage undermines the entire confidence scoring mechanism. py_compile clean, no TODO/FIXME/HACK markers, all imports used, module docstrings follow PURPOSE/WHY/CALLED BY/NOTES.
+
 ## 2026-10-26
 - Fixed second_brain.count() infinite recursion bug (was calling json.dumps(count(), ...) which recursed forever and never queried the DB). Replaced with a real implementation that queries `GROUP BY category, confidence` and returns a nested dict. Added error handling consistent with other client functions. Why it matters: count() is the primary way agents survey their second brain health; a broken one means blind spots. py_compile clean, no TODO/FIXME/HACK markers, all imports used.
 
@@ -12,7 +15,7 @@ Every day, this repo gets a little better. Each entry: what changed and why.
 - Nothing qualified for a safe improvement: `py_compile` clean, no TODO/FIXME/HACK markers, the module docstring already follows PURPOSE/WHY/CALLED BY/NOTES, README flags verified against the argparse definitions (all present), runtime artifacts gitignored. Left the repo untouched rather than manufacture churn.
 
 ## 2026-10-07
-- Nothing qualified for a safe improvement: `py_compile` clean, no TODO/FIXME/HACK markers, the module docstring already follows PURPOSE/WHY/CALLED BY/NOTES, README flags verified against the argparse definitions (all present). Left the repo untouched rather than manufacture churn.
+- Nothing qualified for a safe improvement: `py_compile` clean, no TODO/FIXME/HACK markers, the module docstring already follows PURPOSE/WHY/CALLED BY/NOTES, README matches the tool's flags. Left the repo untouched rather than manufacture churn.
 
 ## 2026-09-27
 - Seeded this log — the daily improvements job tracks every change here from now on.
