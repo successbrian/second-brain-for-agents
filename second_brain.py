@@ -185,7 +185,13 @@ def query(
         if category:
             sql += " AND category = %s"
             params.append(category)
-        # Filter out expired (already done above) but enforce ordering
+        # Enforce min_confidence: only return rows at or above the threshold
+        # CONFIDENCE_ORDER: high=0 > medium=1 > low=2 (expired=3 always excluded)
+        min_order = CONFIDENCE_ORDER.get(min_confidence, 2)
+        acceptable = [level for level, order in CONFIDENCE_ORDER.items()
+                      if order <= min_order and level != "expired"]
+        if acceptable:
+            sql += f" AND confidence IN ({', '.join(repr(l) for l in acceptable)})"
         sql += f" ORDER BY CASE confidence"
         for level, order in CONFIDENCE_ORDER.items():
             sql += f" WHEN '{level}' THEN {order}"
@@ -423,6 +429,12 @@ def search(
         if category:
             sql += " AND category = %s"
             params.append(category)
+        # Enforce min_confidence
+        min_order = CONFIDENCE_ORDER.get(min_confidence, 2)
+        acceptable = [level for level, order in CONFIDENCE_ORDER.items()
+                      if order <= min_order and level != "expired"]
+        if acceptable:
+            sql += f" AND confidence IN ({', '.join(repr(l) for l in acceptable)})"
         sql += f" ORDER BY CASE confidence"
         for level, order in CONFIDENCE_ORDER.items():
             sql += f" WHEN '{level}' THEN {order}"
