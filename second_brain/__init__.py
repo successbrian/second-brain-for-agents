@@ -1,0 +1,41 @@
+from second_brain.second_brain import (
+    CONFIDENCE_ORDER,
+    EVENTS_TABLE,
+    TABLE,
+    count,
+    events_append,
+    events_archive,
+    events_read,
+    get_by_confidence,
+    get_expiring_soon,
+    get_recent,
+    insert_fact,
+    query,
+    query_by_tag,
+    search,
+    update_confidence,
+    upsert_fact,
+    _conn,
+    _upsert_updated,
+)
+
+__all__ = [
+    "TABLE",
+    "EVENTS_TABLE",
+    "CONFIDENCE_ORDER",
+    "insert_fact",
+    "upsert_fact",
+    "query",
+    "get_recent",
+    "query_by_tag",
+    "get_expiring_soon",
+    "get_by_confidence",
+    "update_confidence",
+    "search",
+    "count",
+    "events_append",
+    "events_read",
+    "events_archive",
+]
+
+__version__ = "1.1.0"
