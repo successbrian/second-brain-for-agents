@@ -607,3 +607,81 @@ def events_archive(older_than_days: int = 365) -> int:
     except psycopg2.Error as e:
         print(f"error (events_archive): {e}", file=sys.stderr)
         return -1
+
+
+# ---------------------------------------------------------------------------
+# Delete operations — soft (expiring) and hard (permanent removal)
+# ---------------------------------------------------------------------------
+
+def delete_fact(sb_id: int, reason: Optional[str] = None) -> bool:
+    """
+    Soft-delete a fact by setting confidence='deleted' and appending
+    the reason to the content with a [DELETED] prefix.
+
+    This preserves provenance: the fact remains queryable with
+    confidence='deleted' but is excluded from normal reads.
+
+    Args:
+        sb_id: The second_brain row id to delete.
+        reason: Why this fact is being deleted (stored in content).
+
+    Returns:
+        True if a row was deleted, False if not found.
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        prefix = "[DELETED]"
+        if reason:
+            prefix = f"[DELETED] {reason}"
+        cur.execute(
+            f"""
+            UPDATE {TABLE}
+            SET confidence = 'deleted',
+                content = CONCAT(content, E'\\n\\n{prefix}'),
+                {_upsert_updated()}
+            WHERE id = %s
+            """,
+            (sb_id,),
+        )
+        changed = cur.rowcount > 0
+        if changed:
+            events_append(sb_id, "delete", metadata={"reason": reason})
+        c.commit()
+        cur.close()
+        c.close()
+        return changed
+    except psycopg2.Error as e:
+        print(f"error (delete_fact): {e}", file=sys.stderr)
+        return False
+
+
+def hard_delete_event(event_id: int) -> bool:
+    """
+    Hard-delete an audit event from the second_brain_events table.
+
+    WARNING: This permanently removes the event record. Use only for
+    compliance or data-retention cleanup where the event itself
+    contains no value.
+
+    Args:
+        event_id: The second_brain_events row id to delete.
+
+    Returns:
+        True if a row was deleted, False if not found.
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"DELETE FROM {EVENTS_TABLE} WHERE id = %s",
+            (event_id,),
+        )
+        deleted = cur.rowcount > 0
+        c.commit()
+        cur.close()
+        c.close()
+        return deleted
+    except psycopg2.Error as e:
+        print(f"error (hard_delete_event): {e}", file=sys.stderr)
+        return False

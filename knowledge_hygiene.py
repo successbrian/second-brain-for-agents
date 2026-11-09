@@ -14,6 +14,8 @@ NOTES:
     - Default DB config targets generic local Postgres; override via env.
     - The report() command previously crashed on NULL category rows
       (2026-09-28 fix: COALESCE in the GROUP BY).
+    - --delete soft-deletes a fact by topic name (confidence='deleted')
+      instead of hard-deleting — preserves provenance.
 
 A knowledge store decays three ways: facts go stale, topics get duplicated, and
 operational noise buries the signal. This tool keeps it clean.
@@ -21,6 +23,7 @@ operational noise buries the signal. This tool keeps it clean.
   --expire   soft-expire facts whose expires_at has passed
   --dedupe   list duplicate topics (keep the highest-confidence copy)
   --report   summarize the store by category + confidence
+  --delete   soft-delete a fact by topic name (sets confidence='deleted')
   --dry-run  with --expire: print how many facts WOULD expire, change nothing
 
 DB config via env vars (defaults to unix-socket local peer auth):
@@ -116,15 +119,43 @@ def report():
         sys.exit(1)
 
 
+def delete_topic(topic: str):
+    """Soft-delete a fact by topic name using confidence='deleted'."""
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(
+            f"""
+            UPDATE {TABLE}
+            SET confidence = 'deleted',
+                content = CONCAT(content, E'\\n\\n[DELETED via --delete]'),
+                updated_at = now()
+            WHERE topic = %s
+              AND confidence != 'deleted'
+            """,
+            (topic,),
+        )
+        n = cur.rowcount
+        c.commit()
+        cur.close()
+        c.close()
+        print(f"deleted: {n} fact(s) with topic '{topic}'")
+    except psycopg2.Error as e:
+        print(f"error (delete_topic): {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Second-brain hygiene")
     ap.add_argument("--expire", action="store_true")
     ap.add_argument("--dedupe", action="store_true")
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--delete", type=str, metavar="TOPIC",
+                    help="soft-delete a fact by topic name (sets confidence=deleted)")
     ap.add_argument("--dry-run", action="store_true",
                     help="with --expire: show count without changing anything")
     a = ap.parse_args()
-    if not (a.expire or a.dedupe or a.report):
+    if not (a.expire or a.dedupe or a.report or a.delete):
         ap.print_help()
         sys.exit(1)
     if a.expire:
@@ -133,3 +164,5 @@ if __name__ == "__main__":
         dedupe()
     if a.report:
         report()
+    if a.delete:
+        delete_topic(a.delete)

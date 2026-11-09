@@ -57,6 +57,8 @@ for row in query("market_status", category="rule"):
 | `events_archive(days?)` | Soft-archive events older than N days (marks, never deletes) |
 | `query_by_tag(tag, limit?)` | Find facts by GIN-indexed tag array (`tags @> ARRAY['tag']`) |
 | `get_expiring_soon(hours?, limit?)` | Get facts expiring within the next N hours for proactive re-verification |
+| `delete_fact(sb_id, reason?)` | Soft-delete a fact by id (confidence='deleted', reason appended to content) |
+| `hard_delete_event(event_id)` | Hard-delete an audit event from second_brain_events (permanent, use with caution) |
 
 ## Environment variables
 

@@ -2,6 +2,9 @@
 
 Every day, this repo gets a little better. Each entry: what changed and why.
 
+## 2026-11-08
+- Added soft-delete: `delete_fact(sb_id, reason?)` sets confidence='deleted' and appends the reason to content with a [DELETED] prefix, preserving provenance while excluding the row from normal reads (WHERE confidence != 'expired' still filters it). Also added `hard_delete_event(event_id)` for permanent removal of audit events (with a WARNING docstring — use only for compliance cleanup). CLI: `knowledge_hygiene.py --delete TOPICNAME` soft-deletes a fact by topic name. Why it matters: the second brain had no delete path — expired/deduped facts still returned from upsert/query, bloating the store with ghost rows. Soft-delete gives agents a safe cleanup without destroying audit trail. `py_compile` clean, no TODO/FIXME/HACK markers, all imports used, README function table updated.
+
 ## 2026-11-05
 - Fixed min_confidence parameter in query() and search() — both functions accepted min_confidence but never applied it to the SQL WHERE clause, meaning agents calling query(topic, min_confidence='high') got medium and low facts too. Fixed by building a confidence IN () clause from CONFIDENCE_ORDER thresholds. Why it matters: this is the most fundamental agent-facing API contract; silent confidence leakage undermines the entire confidence scoring mechanism. py_compile clean, no TODO/FIXME/HACK markers, all imports used, module docstrings follow PURPOSE/WHY/CALLED BY/NOTES.
 
