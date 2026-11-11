@@ -75,3 +75,6 @@ Every day, this repo gets a little better. Each entry: what changed and why.
 ## 2026-10-16
 - README: added `upsert_fact(topic, content, ...)` and `search(pattern, match_field?, ...)` rows to the Python client function table — both landed 2026-10-15 (upsert_fact with the UNIQUE-topic constraint, search with ILIKE topic / LIKE content partial matching) but the table documented only the six Oct-13 functions. Doc-only fix; signatures copied verbatim from the code. Why it matters: the two newest functions are the agent-facing ones most likely to be reached for first (idempotent writes, fuzzy lookup); a table that omits them understates the API.
 - Survey: `py_compile` clean, no TODO/FIXME/HACK, all imports used, module docstrings present.
+## 2026-11-10
+- Nothing qualified for a safe improvement: py_compile clean, no TODO/FIXME/HACK markers, all imports used, module docstrings follow PURPOSE/WHY/CALLED BY/NOTES, README matches the tool's flags and API surface, local copy is in sync with remote (f3c3951). Left the repo untouched rather than manufacture churn.
+
