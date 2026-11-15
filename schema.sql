@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS second_brain (
     topic         TEXT NOT NULL UNIQUE,           -- unique upsert key; hygiene reconciles stale dups
     category      TEXT NOT NULL,                  -- fact | rule | research | ...
     content       TEXT NOT NULL,                  -- the fact itself
-    confidence    TEXT NOT NULL DEFAULT 'medium', -- low | medium | high | expired
+    confidence    TEXT NOT NULL DEFAULT 'medium', -- low | medium | high | expired | deleted
     source        TEXT,                           -- where it came from
     verification  TEXT,                           -- how it was verified
     expires_at    TIMESTAMPTZ,                    -- NULL = never; >90d = ask first
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS second_brain_events (
     id          BIGSERIAL PRIMARY KEY,
     sb_id       INTEGER REFERENCES second_brain(id),
     event_type  TEXT NOT NULL
-                CHECK (event_type IN ('insert','update','expire','delete')),
+                CHECK (event_type IN ('insert','update','expire','delete','soft_delete')),
     old_confidence TEXT,
     new_confidence TEXT,
     metadata    JSONB,

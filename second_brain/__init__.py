@@ -1,7 +1,9 @@
 from second_brain.second_brain import (
+    ACTIVE,
     CONFIDENCE_ORDER,
     EVENTS_TABLE,
     TABLE,
+    CONFIDENCE_ORDER,
     count,
     events_append,
     events_archive,
@@ -20,7 +22,9 @@ from second_brain.second_brain import (
 )
 
 __all__ = [
+    "ACTIVE",
     "TABLE",
+    "CONFIDENCE_ORDER",
     "EVENTS_TABLE",
     "CONFIDENCE_ORDER",
     "insert_fact",

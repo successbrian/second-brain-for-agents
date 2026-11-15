@@ -34,7 +34,10 @@ DB = dict(
 TABLE = os.environ.get("SB_TABLE", "second_brain")
 
 # Confidence ordering for sorting results.
-CONFIDENCE_ORDER = {"high": 0, "medium": 1, "low": 2, "expired": 3}
+CONFIDENCE_ORDER = {"high": 0, "medium": 1, "low": 2, "expired": 3, "deleted": 4}
+
+# Confidence levels that pass normal reads (everything except expired and deleted).
+ACTIVE = {'low', 'medium', 'high'}
 
 
 def _conn():
@@ -180,7 +183,7 @@ def query(
     try:
         c = _conn()
         cur = c.cursor()
-        sql = f"SELECT * FROM {TABLE} WHERE topic = %s AND confidence != 'expired'"
+        sql = f"SELECT * FROM {TABLE} WHERE topic = %s AND confidence NOT IN ('expired','deleted')"
         params: list = [topic]
         if category:
             sql += " AND category = %s"
@@ -189,7 +192,7 @@ def query(
         # CONFIDENCE_ORDER: high=0 > medium=1 > low=2 (expired=3 always excluded)
         min_order = CONFIDENCE_ORDER.get(min_confidence, 2)
         acceptable = [level for level, order in CONFIDENCE_ORDER.items()
-                      if order <= min_order and level != "expired"]
+                      if order <= min_order and level not in ("expired", "deleted")]
         if acceptable:
             sql += f" AND confidence IN ({', '.join(repr(l) for l in acceptable)})"
         sql += f" ORDER BY CASE confidence"
@@ -226,7 +229,7 @@ def get_recent(hours: int = 24, limit: int = 50) -> list[dict]:
             f"""
             SELECT * FROM {TABLE}
             WHERE updated_at > now() - interval '{hours} hours'
-              AND confidence != 'expired'
+              AND confidence NOT IN ('expired','deleted')
             ORDER BY created_at DESC
             LIMIT %s
             """,
@@ -261,7 +264,7 @@ def query_by_tag(tag: str, limit: int = 50) -> list[dict]:
             f"""
             SELECT * FROM {TABLE}
             WHERE tags @> ARRAY[%s]::text[]
-              AND confidence != 'expired'
+              AND confidence NOT IN ('expired','deleted')
             ORDER BY created_at DESC
             LIMIT %s
             """,
@@ -297,7 +300,7 @@ def get_expiring_soon(hours: int = 48, limit: int = 100) -> list[dict]:
             SELECT * FROM {TABLE}
             WHERE expires_at IS NOT NULL
               AND expires_at BETWEEN now() AND now() + interval '{hours} hours'
-              AND confidence != 'expired'
+              AND confidence NOT IN ('expired','deleted')
             ORDER BY expires_at ASC
             LIMIT %s
             """,
@@ -331,7 +334,7 @@ def get_by_confidence(
     try:
         c = _conn()
         cur = c.cursor()
-        sql = f"SELECT * FROM {TABLE} WHERE confidence = %s AND confidence != 'expired'"
+        sql = f"SELECT * FROM {TABLE} WHERE confidence = %s AND confidence NOT IN ('expired','deleted')"
         params: list = [confidence]
         if category:
             sql += " AND category = %s"
@@ -421,10 +424,10 @@ def search(
         c = _conn()
         cur = c.cursor()
         if match_field == "content":
-            sql = f"SELECT * FROM {TABLE} WHERE content LIKE %s AND confidence != 'expired'"
+            sql = f"SELECT * FROM {TABLE} WHERE content LIKE %s AND confidence NOT IN ('expired','deleted')"
             params: list = [f"%{pattern}%"]
         else:
-            sql = f"SELECT * FROM {TABLE} WHERE topic ILIKE %s AND confidence != 'expired'"
+            sql = f"SELECT * FROM {TABLE} WHERE topic ILIKE %s AND confidence NOT IN ('expired','deleted')"
             params: list = [f"%{pattern}%"]
         if category:
             sql += " AND category = %s"
@@ -432,7 +435,7 @@ def search(
         # Enforce min_confidence
         min_order = CONFIDENCE_ORDER.get(min_confidence, 2)
         acceptable = [level for level, order in CONFIDENCE_ORDER.items()
-                      if order <= min_order and level != "expired"]
+                      if order <= min_order and level not in ("expired", "deleted")]
         if acceptable:
             sql += f" AND confidence IN ({', '.join(repr(l) for l in acceptable)})"
         sql += f" ORDER BY CASE confidence"
@@ -465,7 +468,7 @@ def count() -> dict:
             f"""
             SELECT category, confidence, count(*)::int
             FROM {TABLE}
-            WHERE confidence != 'expired'
+            WHERE confidence NOT IN ('expired','deleted')
             GROUP BY 1, 2
             ORDER BY 1, 2
             """

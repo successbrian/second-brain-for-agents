@@ -1,3 +1,5 @@
+## 2026-11-14
+- Fixed soft-delete leaking into all reads: changed `confidence != 'expired'` to `confidence NOT IN ('expired','deleted')` across 7 read functions (query, get_recent, query_by_tag, get_expiring_soon, search both branches, count). Also added 'deleted' to CONFIDENCE_ORDER (priority 4), defined `ACTIVE = {'low', 'medium', 'high'}` constant for agent code, updated min_confidence enforcement to exclude 'deleted' alongside 'expired', fixed get_by_confidence filter. Exported ACTIVE and CONFIDENCE_ORDER from second_brain package. Schema: added 'deleted' to confidence comment, added 'soft_delete' event type to second_brain_events CHECK constraint. Why it matters: delete_fact() was the only function in the repo that set confidence='deleted', but every read path still returned deleted facts — the soft-delete path was a no-op. Now deleted facts are excluded from all queries, searches, counts, and hygiene operations. py_compile clean on all files.
 # Daily Improvements
 
 Every day, this repo gets a little better. Each entry: what changed and why.
