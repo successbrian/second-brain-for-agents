@@ -127,10 +127,6 @@ def test_db():
     # fn_second_brain_audit() because BEGIN...END contains semicolons.
     statements = _split_sql_statements(schema_sql)
     for stmt in statements:
-        # Skip comments
-        stripped = stmt.lstrip()
-        if stripped.startswith("--"):
-            continue
         # Replace table names for test namespace
         test_stmt = stmt.replace("second_brain", table).replace("second_brain_events", events_table)
         try:
