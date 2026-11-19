@@ -84,7 +84,7 @@ BEGIN
     END IF;
     RETURN NULL;
 END;
-$audit LANGUAGE plpgsql;
+$audit$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_second_brain_audit ON second_brain;
 CREATE TRIGGER trg_second_brain_audit
