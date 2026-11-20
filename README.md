@@ -78,8 +78,10 @@ Requires `psycopg2` (`pip install psycopg2-binary`).
 |----------- |---------------------------------------------------------------------|
 | `--report` | Summarizes the store by `category × confidence` — your knowledge at a glance |
 | `--expire` | Soft-marks facts past `expires_at` as `expired` (won't delete, just downgrades confidence) |
+| `--purge`  | Hard-deletes facts marked `expired` (always run `--purge` first without `--confirm` to preview) |
+| `--confirm`| Modifier for `--purge`: actually deletes expired facts |
 | `--dedupe` | Lists duplicate topics ranked by count — pick the highest-confidence copy and remove the rest |
-| `--dry-run` | Modifier for `--expire`: prints how many facts WOULD expire without changing anything |
+| `--dry-run` | Modifier for `--expire`: previews how many facts would expire without changing anything |
 
 ## Architecture
 
@@ -89,6 +91,8 @@ Requires `psycopg2` (`pip install psycopg2-binary`).
 [Verification pipeline] → UPDATE verification + confidence=high
        ↓
 [Hygiene cron] → --expire (stale → expired), --dedupe (dupes flagged)
+       ↓
+[Cleanup cron] → --purge --confirm (hard-delete confirmed expired facts)
        ↓
 [Consumer queries] → filter WHERE confidence != 'expired'
 ```

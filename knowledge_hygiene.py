@@ -21,6 +21,7 @@ A knowledge store decays three ways: facts go stale, topics get duplicated, and
 operational noise buries the signal. This tool keeps it clean.
 
   --expire   soft-expire facts whose expires_at has passed
+  --purge    hard-delete facts marked 'expired' (use --dry-run first, then --purge --confirm)
   --dedupe   list duplicate topics (keep the highest-confidence copy)
   --report   summarize the store by category + confidence
   --delete   soft-delete a fact by topic name (sets confidence='deleted')
@@ -78,6 +79,41 @@ def expire(dry_run=False):
     except psycopg2.Error as e:
         print(f"error (expire): {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def purge(confirm=False):
+    """Hard-delete facts that have been soft-expired.
+    Without --confirm, this is a dry-run: prints how many would be removed.
+    This is the ONLY destructive operation in this tool — always use --confirm
+    after reviewing --dry-run output first.
+    """
+    try:
+        c = _conn()
+        cur = c.cursor()
+        cur.execute(f"SELECT count(*) FROM {TABLE} WHERE confidence = 'expired'")
+        n = cur.fetchone()[0]
+        if n == 0:
+            print("no expired facts to purge")
+            cur.close()
+            c.close()
+            return
+        if not confirm:
+            print(f"would purge: {n} expired facts (pass --confirm to delete)")
+            cur.close()
+            c.close()
+            return
+        cur.execute(f"DELETE FROM {TABLE} WHERE confidence = 'expired'")
+        del_n = cur.rowcount
+        c.commit()
+        print(f"purged: {del_n} expired facts (of {n} available)")
+        cur.close()
+        c.close()
+    except psycopg2.Error as e:
+        print(f"error (purge): {e}", file=sys.stderr)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("purge cancelled by user", file=sys.stderr)
+        sys.exit(130)
 
 
 def dedupe():
@@ -148,18 +184,24 @@ def delete_topic(topic: str):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Second-brain hygiene")
     ap.add_argument("--expire", action="store_true")
+    ap.add_argument("--purge", action="store_true",
+                    help="hard-delete expired facts (use --dry-run first, then --purge --confirm)")
     ap.add_argument("--dedupe", action="store_true")
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--delete", type=str, metavar="TOPIC",
                     help="soft-delete a fact by topic name (sets confidence=deleted)")
     ap.add_argument("--dry-run", action="store_true",
                     help="with --expire: show count without changing anything")
+    ap.add_argument("--confirm", action="store_true",
+                    help="with --purge: actually delete expired facts")
     a = ap.parse_args()
-    if not (a.expire or a.dedupe or a.report or a.delete):
+    if not (a.expire or a.purge or a.dedupe or a.report or a.delete):
         ap.print_help()
         sys.exit(1)
     if a.expire:
         expire(dry_run=a.dry_run)
+    if a.purge:
+        purge(confirm=a.confirm)
     if a.dedupe:
         dedupe()
     if a.report:
