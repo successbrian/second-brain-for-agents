@@ -27,7 +27,7 @@ import psycopg2
 
 DB = dict(
     host=os.environ.get("SB_DB_HOST", "/var/run/postgresql"),
-    port=os.environ.get("SB_DB_PORT", "5432"),
+    port=int(os.environ.get("SB_DB_PORT", "5432")),
     dbname=os.environ.get("SB_DB_NAME", "postgres"),
     user=os.environ.get("SB_DB_USER", os.environ.get("USER", "")),
 )
